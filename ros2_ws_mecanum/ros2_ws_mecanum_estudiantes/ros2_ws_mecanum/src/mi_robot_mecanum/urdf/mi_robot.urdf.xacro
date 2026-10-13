@@ -1,0 +1,237 @@
+<?xml version="1.0"?>
+<!-- Examen Robótica Móvil — Robot Mecanum + RPLIDAR A3 + Orbbec Astra
+     Complete los TODO con los valores de SU variante y de las hojas de datos.
+     Validar:  xacro mi_robot.urdf.xacro > /tmp/check.urdf && echo OK -->
+<robot name="mi_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ===================== Parámetros de la variante ===================== -->
+  <!-- TODO (Parte 1): reemplace cada ${TODO} por el valor de su variante -->
+  <xacro:property name="rueda_radio" value="0.060"/>         <!-- r (m) -->
+  <xacro:property name="distancia_ejes" value="0.36"/>      <!-- wheelbase (m) -->
+  <xacro:property name="separacion_ruedas" value="0.32"/>   <!-- track (m) -->
+  <xacro:property name="lx" value="${distancia_ejes / 2.0}"/>
+  <xacro:property name="ly" value="${separacion_ruedas / 2.0}"/>
+  <xacro:property name="rueda_ancho" value="0.04"/>
+  <xacro:property name="rueda_masa" value="0.3"/>
+
+  <!-- Chasis (dado) -->
+  <xacro:property name="chasis_largo" value="${distancia_ejes + 0.04}"/>
+  <xacro:property name="chasis_ancho" value="${separacion_ruedas - rueda_ancho - 0.02}"/>
+  <xacro:property name="chasis_alto" value="0.05"/>
+  <xacro:property name="chasis_masa" value="3.0"/>
+
+  <!-- Lidar-->
+  <xacro:property name="lidar_diametro" value="0.076"/>
+  <xacro:property name="lidar_alto"  value="0.041"/>
+  <xacro:property name="lidar_masa"  value="0.190"/>
+
+  <!-- Camara-->
+  <xacro:property name="cam_largo" value="0.165"/>
+  <xacro:property name="cam_ancho" value="0.040"/>
+  <xacro:property name="cam_alto"  value="0.048"/>
+  <xacro:property name="cam_masa"  value="0.310"/>
+
+  <!-- ===================== Inercias (dadas) ===================== -->
+  <xacro:macro name="inercia_caja" params="m x y z">
+    <inertia ixx="${m*(y*y + z*z)/12.0}" ixy="0" ixz="0"
+             iyy="${m*(x*x + z*z)/12.0}" iyz="0"
+             izz="${m*(x*x + y*y)/12.0}"/>
+  </xacro:macro>
+  <!-- Cilindro con eje a lo largo de z local -->
+  <xacro:macro name="inercia_cilindro" params="m r h">
+    <inertia ixx="${m*(3*r*r + h*h)/12.0}" ixy="0" ixz="0"
+             iyy="${m*(3*r*r + h*h)/12.0}" iyz="0"
+             izz="${m*r*r/2.0}"/>
+  </xacro:macro>
+
+  <!-- ===================== Chasis (dado) ===================== -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <geometry><box size="${chasis_largo} ${chasis_ancho} ${chasis_alto}"/></geometry>
+      <material name="azul"><color rgba="0.2 0.4 0.8 1"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <geometry><box size="${chasis_largo} ${chasis_ancho} ${chasis_alto}"/></geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <mass value="${chasis_masa}"/>
+      <xacro:inercia_caja m="${chasis_masa}" x="${chasis_largo}" y="${chasis_ancho}" z="${chasis_alto}"/>
+    </inertial>
+  </link>
+
+  <!-- ===================== Ruedas (Parte 1) ===================== -->
+  <!-- IMPORTANTE: el link debe llamarse rueda_<prefijo> y su <collision> debe ser
+       la esfera dada: el launch le añade la fricción que emula los rodillos a 45°. -->
+  <xacro:macro name="rueda" params="prefijo x_signo y_signo">
+    <link name="rueda_${prefijo}">
+      <visual>
+        <geometry><cylinder radius="${rueda_radio}" length="${rueda_ancho}"/></geometry>
+        <material name="negro"><color rgba="0.1 0.1 0.1 1"/></material>
+      </visual>
+      <collision>
+        <geometry><sphere radius="${rueda_radio}"/></geometry>
+      </collision>
+      <inertial>
+        <mass value="${rueda_masa}"/>
+        <xacro:inercia_cilindro m="${rueda_masa}" r="${rueda_radio}" h="${rueda_ancho}"/>
+      </inertial>
+      <!-- TODO: <inertial> de un cilindro de masa rueda_masa, radio rueda_radio y largo rueda_ancho -->
+    </link>
+
+    <!-- TODO: joint "joint_rueda_${prefijo}" tipo continuous entre base_link y
+         rueda_${prefijo}, en (x_signo*lx, y_signo*ly, 0). Igual que en el diferencial:
+         rpy = -π/2 para que el eje z de la rueda apunte a +y, y eje z. -->
+    <joint name="joint_rueda_${prefijo}" type="continuous">
+      <parent link="base_link"/>
+      <child link="rueda_${prefijo}"/>
+      <origin xyz="${x_signo*lx} ${y_signo*ly} 0" rpy="-1.5708 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:rueda prefijo="del_izq" x_signo="1" y_signo="1"/>
+  <xacro:rueda prefijo="del_der" x_signo="1" y_signo="-1"/>
+  <xacro:rueda prefijo="tra_izq" x_signo="-1" y_signo="1"/>
+  <xacro:rueda prefijo="tra_der" x_signo="-1" y_signo="-1"/>
+  <!-- TODO: instanciar del_der, tra_izq y tra_der -->
+
+  <!-- ===================== RPLIDAR A3 (Parte 2) ===================== -->
+  <!-- TODO: link "lidar_link" (cilindro) con dimensiones y masa de la hoja de datos:
+       visual, collision e inertial -->
+
+  <link name="lidar_link">
+    <visual>
+      <geometry><cylinder radius="${lidar_diametro/2}" length="${lidar_alto}"/></geometry>
+      <material name="negro"><color rgba="0.1 0.1 0.1 1"/></material>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="${lidar_diametro/2}" length="${lidar_alto}"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="${lidar_masa}"/>
+      <xacro:inercia_cilindro m="${lidar_masa}" r="${lidar_diametro/2}" h="${lidar_alto}"/>
+    </inertial>
+  </link>
+  <joint name="joint_lidar" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="0.05 0 0.13" rpy="0 0 0"/>
+  </joint>
+
+  <!-- TODO: joint fijo "joint_lidar" base_link -> lidar_link en la posición de su variante -->
+  <gazebo reference="lidar_link">
+    <sensor name="rplidar_a3" type="gpu_lidar">
+      <topic>/scan</topic>
+      <gz_frame_id>lidar_link</gz_frame_id>
+      <update_rate>10</update_rate>
+      <always_on>1</always_on>
+      <visualize>true</visualize>
+      <lidar>
+        <scan>
+          <horizontal>
+            <samples>1000</samples>          <!-- muestras por vuelta -->
+            <resolution>1</resolution>
+            <min_angle>-3.1416</min_angle>
+            <max_angle>3.1416</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.2</min>
+          <max>20</max>
+          <resolution>0.01</resolution>
+        </range>
+        <!-- TODO: ruido gaussiano, media 0, desviación 0.01 m -->
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </lidar>
+    </sensor>
+  </gazebo>
+
+  <!-- ===================== Orbbec Astra (Parte 2) ===================== -->
+  <!-- TODO: link "camara_link" (caja) con dimensiones y masa de la hoja de datos -->
+  <link name="camara_link">
+    <visual>
+      <geometry><box size="${cam_ancho} ${cam_largo} ${cam_alto}"/></geometry>
+      <material name="negro"/>
+    </visual>
+    <collision>
+      <geometry><box size="${cam_largo} ${cam_ancho} ${cam_alto}"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="${cam_masa}"/>
+      <xacro:inercia_caja m="${cam_masa}" x="${cam_largo}" y="${cam_ancho}" z="${cam_alto}"/>
+    </inertial>
+  </link>
+  <!-- TODO: joint fijo "joint_camara" base_link -> camara_link en la posición de su variante -->
+  <joint name="joint_camara" type="fixed">
+    <parent link="base_link"/>
+    <child link="camara_link"/>
+    <origin xyz="0.17 0 0.09" rpy="0 0 0"/>  
+  </joint>
+
+  <!-- TODO: link "camara_optica_link" y joint fijo "joint_camara_optica" desde
+       camara_link con rpy = (-π/2, 0, -π/2) (REP-103) -->
+  <link name="camara_optica_link"/>
+  <joint name="joint_camara_optica" type="fixed">
+    <parent link="camara_link"/>
+    <child link="camara_optica_link"/>
+    <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+  </joint>
+
+  <gazebo reference="camara_link">
+    <sensor name="astra" type="rgbd_camera">
+      <topic>/camara</topic>
+      <gz_frame_id>camara_link</gz_frame_id>
+      <update_rate>30</update_rate>
+      <always_on>1</always_on>
+      <camera>
+        <horizontal_fov>1.01927</horizontal_fov>   <!-- en radianes -->
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.4</near>
+          <far>2.0</far>
+        </clip>
+        <depth_camera>
+          <clip>
+            <near>0.4</near>
+            <far>2.0</far>
+          </clip>
+        </depth_camera>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- ===================== Plugins de Gazebo (Parte 1) ===================== -->
+  <!-- Motor de una rueda: recibe ω (rad/s) en /vel_rueda_<prefijo>.
+       No se usa MecanumDrive: la cinemática la escriben ustedes en el nodo cinematica. -->
+  <xacro:macro name="motor" params="prefijo">
+    <plugin filename="gz-sim-joint-controller-system" name="gz::sim::systems::JointController">
+      <joint_name>joint_rueda_${prefijo}</joint_name>
+      <use_force_commands>false</use_force_commands>
+      <topic>/vel_rueda_${prefijo}</topic>
+    </plugin>
+  </xacro:macro>
+
+  <gazebo>
+    <xacro:motor prefijo="del_izq"/>
+    <!-- TODO: motores de del_der, tra_izq y tra_der -->
+    <xacro:motor prefijo="del_der"/>
+    <xacro:motor prefijo="tra_izq"/>
+    <xacro:motor prefijo="tra_der"/>
+
+    <plugin filename="gz-sim-joint-state-publisher-system"
+            name="gz::sim::systems::JointStatePublisher"/>
+    <!-- TODO: plugin gz-sim-joint-state-publisher-system (encoders) -->
+  </gazebo>
+
+</robot>
